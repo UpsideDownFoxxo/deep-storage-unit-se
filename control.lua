@@ -182,6 +182,7 @@ function update_unit(unit_data, unit_number, force)
 			if unit_data.count < to_add then
 				to_add = unit_data.count
 			end
+			to_add = math.floor(to_add)
 			if to_add > 0 then
 				unit_data.last_action = comfortable - inventory_count
 				local amount_added = entity.insert { name = item, count = to_add }
