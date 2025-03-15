@@ -441,7 +441,7 @@ local function on_destroyed_beacon(event)
 	})
 
 	for _, value in pairs(affected_storages) do
-		update_storage_beacons(global.units[value.unit_number], entity.name, entity.unit_number)
+		update_storage_beacons(global.units[value.unit_number], entity.name, entity)
 	end
 end
 
@@ -650,15 +650,24 @@ function update_storage_beacons(unit_data, name, exclude)
 
 	if exclude then
 		for i, value in pairs(unit_data.beacons[name]) do
-			if value.unit_number == exclude then
+			if value.unit_number == exclude.unit_number then
 				unit_data.beacons[name][i] = nil
 			end
 		end
 	end
 
-	if beacons_max_count[name] and unit_data.beacons[name] and #unit_data.beacons[name] > beacons_max_count[name] then
-		overload_storage(unit_data, name)
-	elseif unit_data.overloaded_sprite then
+	for b_name, beacons in pairs(unit_data.beacons) do
+		if
+			beacons_max_count[b_name]
+			and unit_data.beacons[b_name]
+			and #beacons - (exclude and exclude.name == b_name and 1 or 0) > beacons_max_count[b_name]
+		then
+			overload_storage(unit_data, b_name)
+			return
+		end
+	end
+
+	if unit_data.overloaded_sprite then
 		overload_storage_clear(unit_data)
 	end
 end
