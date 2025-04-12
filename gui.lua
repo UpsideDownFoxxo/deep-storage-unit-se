@@ -214,38 +214,6 @@ local function update_gui(gui, fresh_gui)
 		mc_frame.mc_header.mc_header_flow.mc_header_tier_label.tooltip =
 			{ "mod-gui.matter-tab-tier-tooltip", math.ceil(unit_data.conversion_to_next_tier * 100) }
 	end
-
-	--[[
-
-	local status, img
-	if entity.to_be_deconstructed() then
-		status = {'entity-status.marked-for-deconstruction'}
-		img = 'utility/status_not_working'
-	elseif powersource.energy == 0 then
-		status = {'entity-status.no-power'}
-		img = 'utility/status_not_working'
-	elseif not unit_data.item then
-		for name, _ in pairs(inventory.get_contents()) do
-			if not shared.check_for_basic_item(name) then
-				status = {'entity-status.cannot-store', game.item_prototypes[name].localised_name}
-				img = 'utility/status_not_working'
-				goto cannot_store
-			end
-		end
-		status = {'entity-status.no-input-item'}
-		img = 'utility/status_not_working'
-		::cannot_store::
-	elseif powersource.energy < powersource.electric_buffer_size * 0.9 then
-		status = {'entity-status.low-power'}
-		img = 'utility/status_yellow'
-	else
-		status = {'entity-status.working'}
-		img = 'utility/status_working'
-	end
-	
-	content_flow.status_flow.status_text.caption = status
-	content_flow.status_flow.status_sprite.sprite = img
-	]]
 end
 
 script.on_nth_tick(2, function(event)
