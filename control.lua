@@ -106,7 +106,7 @@ end
 
 --- sets the filters of the given unit, spills item stacks that do not match the item in the unit data
 --- @param unit_data table
-local function set_filter(unit_data)
+function set_filter(unit_data)
 	local inventory = unit_data.inventory
 	local item = unit_data.item
 	local entity = unit_data.entity
@@ -141,7 +141,7 @@ local function detect_item(unit_data)
 	return false
 end
 
-local function update_unit(unit_data, unit_number, force)
+function update_unit(unit_data, unit_number, force)
 	local entity = unit_data.entity
 	local inventory = unit_data.inventory
 
@@ -596,7 +596,7 @@ function apply_item_loss(unit_data)
 	end
 end
 
-local function update_inventory_limits(unit_data)
+function update_inventory_limits(unit_data)
 	local inventory_limit
 
 	if unit_data.max_conversion_speed then
