@@ -231,33 +231,53 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 	local unit_data = storage.units[entity.unit_number]
 	local position = destination.position
 	local surface = destination.surface
+	local force = destination.force
 
-	local powersource, combinator = unit_data.powersource, unit_data.combinator
+	-- try to find parts that result from area clones and re-integrate them
 
-	if powersource.valid then
-		powersource = powersource.clone({ position = position, surface = surface })
+	local combinator
+	local powersource
+
+	local old_powersource = surface.find_entities_filtered({ position = position, name = "memory-unit-powersource" })[1]
+	local old_combinator = surface.find_entities_filtered({
+		position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
+		name = "memory-unit-combinator",
+	})[1]
+
+	if old_powersource then
+		powersource = old_powersource
 	else
-		powersource = surface.create_entity({
-			name = "memory-unit-powersource",
-			position = position,
-			force = force,
-		})
-		powersource.destructible = false
+		powersource = unit_data.powersource
+		if powersource.valid then
+			powersource = powersource.clone({ position = position, surface = surface })
+		else
+			powersource = surface.create_entity({
+				name = "memory-unit-powersource",
+				position = position,
+				force = force,
+			})
+			powersource.destructible = false
+		end
 	end
 
-	if combinator.valid then
-		combinator = combinator.clone({
-			position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
-			surface = surface,
-		})
+	if old_combinator then
+		combinator = old_combinator
 	else
-		combinator = surface.create_entity({
-			name = "memory-unit-combinator",
-			position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
-			force = force,
-		})
-		combinator.destructible = false
-		combinator.operable = false
+		powersource = unit_data.combinator
+		if combinator.valid then
+			combinator = combinator.clone({
+				position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
+				surface = surface,
+			})
+		else
+			combinator = surface.create_entity({
+				name = "memory-unit-combinator",
+				position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
+				force = force,
+			})
+			combinator.destructible = false
+			combinator.operable = false
+		end
 	end
 
 	local item = unit_data.item
