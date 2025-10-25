@@ -1,8 +1,8 @@
 {
-  "name": "deep-storage-unit",
+  "name": "deep-storage-unit-se-fox",
   "version": "1.6.8",
   "title": "Memory Storage",
-  "author": "notnotmelon",
+  "author": "Upsidedownfoxxo",
   "homepage": "https://github.com/notnotmelon/deep-storage-unit",
   "description": "An alternative to warehouses. The Memory Unit can store an infinite amount of a single item type. The more items you store, the more power it will require!",
   "factorio_version": "2.0",
@@ -11,6 +11,7 @@
     "(?) Krastorio2",
     "(?) PickerDollies",
     "! logistic-memory-units",
-    "! space-exploration"
+    "space-exploration"
   ]
 }
+

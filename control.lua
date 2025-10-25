@@ -1,6 +1,6 @@
-require "gui"
+require("gui")
 
-local shared = require "shared"
+local shared = require("shared")
 local update_rate = shared.update_rate
 local update_slots = shared.update_slots
 local compactify = shared.compactify
@@ -38,7 +38,7 @@ local function update_unit_exterior(unit_data, inventory_count)
 	unit_data.previous_inventory_count = inventory_count
 	local total_count = unit_data.count + inventory_count
 
-	local signal = {type = "item", name = unit_data.item, quality = unit_data.quality or "normal"}
+	local signal = { type = "item", name = unit_data.item, quality = unit_data.quality or "normal" }
 	shared.update_combinator(unit_data.combinator, signal, total_count)
 	shared.update_display_text(unit_data, entity, compactify(total_count))
 	shared.update_power_usage(unit_data, total_count)
@@ -54,18 +54,21 @@ function set_filter(unit_data)
 		local stack = inventory[i]
 		local filter = {
 			name = item,
-			quality = quality
+			quality = quality,
 		}
-		
-		if not inventory.set_filter(i, filter) or (stack.valid_for_read and (stack.name ~= item or stack.quality.name ~= quality)) then
-			entity.surface.spill_item_stack{
+
+		if
+			not inventory.set_filter(i, filter)
+			or (stack.valid_for_read and (stack.name ~= item or stack.quality.name ~= quality))
+		then
+			entity.surface.spill_item_stack({
 				position = entity.position,
 				stack = stack,
 				enable_looted = true,
 				force = entity.force_index,
 				allow_belts = false,
 				use_start_position_on_failure = true,
-			}
+			})
 			stack.clear()
 			inventory.set_filter(i, filter)
 		end
@@ -78,7 +81,7 @@ local function detect_item(unit_data)
 		local name, quality = itemstack.name, itemstack.quality
 		if not shared.is_spoilable(name) then
 			unit_data.item = name
-			unit_data.quality = quality
+			unit_data.quality = quality or "normal"
 			unit_data.stack_size = prototypes.item[name].stack_size
 			unit_data.comfortable = unit_data.stack_size * #inventory / 2
 			set_filter(unit_data)
@@ -95,22 +98,29 @@ function update_unit(unit_data, unit_number, force)
 	local container = unit_data.container
 	local inventory = unit_data.inventory
 
-	if validity_check(unit_number, unit_data, force) then return end
+	if validity_check(unit_number, unit_data, force) then
+		return
+	end
 
 	local changed = false
 
-	if unit_data.item == nil then changed = detect_item(unit_data) end
+	if unit_data.item == nil then
+		changed = detect_item(unit_data)
+	end
 	local item = unit_data.item
-	if item == nil then return end
+	if item == nil then
+		return
+	end
 	local comfortable = unit_data.comfortable
 	local quality = unit_data.quality
 
-	local inventory_count = inventory.get_item_count{
+	local inventory_count = inventory.get_item_count({
 		name = item,
-		quality = quality
-	}
+		quality = quality,
+	})
 	if inventory_count > comfortable then
-		local amount_removed = inventory.remove {name = item, count = inventory_count - comfortable, quality = quality}
+		local amount_removed =
+			inventory.remove({ name = item, count = inventory_count - comfortable, quality = quality })
 		unit_data.count = unit_data.count + amount_removed
 		inventory_count = inventory_count - amount_removed
 		changed = true
@@ -123,7 +133,7 @@ function update_unit(unit_data, unit_number, force)
 			to_add = unit_data.count
 		end
 		if to_add ~= 0 then
-			local amount_added = entity.insert {name = item, count = to_add, quality = quality}
+			local amount_added = entity.insert({ name = item, count = to_add, quality = quality })
 			unit_data.count = unit_data.count - amount_added
 			inventory_count = inventory_count + amount_added
 		end
@@ -150,26 +160,28 @@ local combinator_shift_y = 1.75
 
 local function on_created(event)
 	local entity = event.entity
-	if entity.name ~= "memory-unit" then return end
+	if entity.name ~= "memory-unit" then
+		return
+	end
 	local position = entity.position
 	local surface = entity.surface
 	local force = entity.force
 
-	local combinator = surface.create_entity {
+	local combinator = surface.create_entity({
 		name = "memory-unit-combinator",
-		position = {position.x + combinator_shift_x, position.y + combinator_shift_y},
+		position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
 		force = force,
-		quality = entity.quality
-	}
+		quality = entity.quality,
+	})
 	combinator.operable = false
 	combinator.destructible = false
 
-	local powersource = surface.create_entity {
+	local powersource = surface.create_entity({
 		name = "memory-unit-powersource",
 		position = position,
 		force = force,
-		quality = entity.quality
-	}
+		quality = entity.quality,
+	})
 	powersource.destructible = false
 
 	local unit_data = {
@@ -179,12 +191,14 @@ local function on_created(event)
 		combinator = combinator,
 		quality = "normal",
 		inventory = entity.get_inventory(defines.inventory.chest),
-		lag_id = math.random(0, update_slots - 1)
+		lag_id = math.random(0, update_slots - 1),
 	}
 	storage.units[entity.unit_number] = unit_data
 
 	local inventory = event.consumed_items
-	local tags = event.tags or (inventory and not inventory.is_empty() and inventory[1].valid_for_read and inventory[1].is_item_with_tags and inventory[1].tags) or nil
+	local tags = event.tags
+		or (inventory and not inventory.is_empty() and inventory[1].valid_for_read and inventory[1].is_item_with_tags and inventory[1].tags)
+		or nil
 	if tags and tags.name and prototypes.item[tags.name] then
 		unit_data.count = tags.count
 		unit_data.item = tags.name
@@ -195,7 +209,7 @@ local function on_created(event)
 		update_unit(unit_data, entity.unit_number, true)
 	elseif tags and tags.name and not prototypes.item[tags.name] then
 		shared.update_power_usage(unit_data, 0)
-		game.print{"mod-gui.migrated-item", tags.count, tags.name, tags.quality or "normal"}
+		game.print({ "mod-gui.migrated-item", tags.count, tags.name, tags.quality or "normal" })
 	else
 		shared.update_power_usage(unit_data, 0)
 	end
@@ -209,7 +223,9 @@ script.on_event(defines.events.on_space_platform_built_entity, on_created)
 
 script.on_event(defines.events.on_entity_cloned, function(event)
 	local entity = event.source
-	if entity.name ~= "memory-unit" then return end
+	if entity.name ~= "memory-unit" then
+		return
+	end
 	local destination = event.destination
 
 	local unit_data = storage.units[entity.unit_number]
@@ -219,24 +235,27 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 	local powersource, combinator = unit_data.powersource, unit_data.combinator
 
 	if powersource.valid then
-		powersource = powersource.clone {position = position, surface = surface}
+		powersource = powersource.clone({ position = position, surface = surface })
 	else
-		powersource = surface.create_entity {
+		powersource = surface.create_entity({
 			name = "memory-unit-powersource",
 			position = position,
-			force = force
-		}
+			force = force,
+		})
 		powersource.destructible = false
 	end
 
 	if combinator.valid then
-		combinator = combinator.clone {position = {position.x + combinator_shift_x, position.y + combinator_shift_y}, surface = surface}
+		combinator = combinator.clone({
+			position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
+			surface = surface,
+		})
 	else
-		combinator = surface.create_entity {
+		combinator = surface.create_entity({
 			name = "memory-unit-combinator",
-			position = {position.x + combinator_shift_x, position.y + combinator_shift_y},
-			force = force
-		}
+			position = { position.x + combinator_shift_x, position.y + combinator_shift_y },
+			force = force,
+		})
 		combinator.destructible = false
 		combinator.operable = false
 	end
@@ -251,7 +270,7 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 		comfortable = unit_data.comfortable,
 		stack_size = unit_data.stack_size,
 		inventory = destination.get_inventory(defines.inventory.chest),
-		lag_id = math.random(0, update_slots - 1)
+		lag_id = math.random(0, update_slots - 1),
 	}
 	storage.units[destination.unit_number] = unit_data
 
@@ -263,7 +282,10 @@ end)
 
 local function on_destroyed(event)
 	local entity = event.entity
-	if entity.name ~= "memory-unit" then return end
+	if entity.name ~= "memory-unit" then
+		return
+	end
+	game.print("destroy")
 
 	local unit_data = storage.units[entity.unit_number]
 	storage.units[entity.unit_number] = nil
@@ -277,18 +299,18 @@ local function on_destroyed(event)
 
 	if buffer and item and count ~= 0 then
 		buffer.clear()
-		buffer.insert{
+		buffer.insert({
 			name = "memory-unit-with-tags",
 			count = 1,
 			quality = entity.quality.name,
-			tags = {name = item, count = count, quality = quality},
+			tags = { name = item, count = count, quality = quality },
 			custom_description = {
 				"item-description.memory-unit-with-tags",
 				compactify(count),
 				item,
-				quality
-			}
-		}
+				quality,
+			},
+		})
 	end
 end
 
@@ -300,20 +322,23 @@ script.on_event(defines.events.on_space_platform_mined_entity, on_destroyed)
 
 local function pre_mined(event)
 	local entity = event.entity
-	if entity.name ~= "memory-unit" then return end
+	if entity.name ~= "memory-unit" then
+		return
+	end
 
 	local unit_data = storage.units[entity.unit_number]
 	local item = unit_data.item
 
 	if item then
 		local inventory = unit_data.inventory
-		local in_inventory = inventory.get_item_count{
+		local in_inventory = inventory.get_item_count({
 			name = item,
-			quality = unit_data.quality
-		}
+			quality = unit_data.quality,
+		})
 
 		if in_inventory > 0 then
-			unit_data.count = unit_data.count + inventory.remove {name = item, count = in_inventory, quality = unit_data.quality}
+			unit_data.count = unit_data.count
+				+ inventory.remove({ name = item, count = in_inventory, quality = unit_data.quality })
 		end
 	end
 end

@@ -11,16 +11,18 @@ local function compactify(n)
 	while n >= 1000 do
 		new = floor(n / 100) / 10
 		if n == new then
-			return {"big-numbers.infinity"}
+			return { "big-numbers.infinity" }
 		else
 			n = new
 		end
 		suffix = suffix + 1
 	end
 
-	if suffix ~= 1 and floor(n) == n then n = tostring(n) .. ".0" end
+	if suffix ~= 1 and floor(n) == n then
+		n = tostring(n) .. ".0"
+	end
 
-	return {"big-numbers." .. suffix, n}
+	return { "big-numbers." .. suffix, n }
 end
 
 local function open_inventory(player)
@@ -43,16 +45,16 @@ local function update_display_text(unit_data, entity, localised_string)
 			return
 		end
 	end
-		
-	unit_data.text = rendering.draw_text {
+
+	unit_data.text = rendering.draw_text({
 		surface = entity.surface,
 		target = entity,
 		text = localised_string,
 		alignment = "center",
 		scale = 1.5,
 		only_in_alt_mode = true,
-		color = {r = 1, g = 1, b = 1}
-	}.id
+		color = { r = 1, g = 1, b = 1 },
+	}).id
 end
 
 local function update_combinator(combinator, signal, count)
@@ -63,7 +65,7 @@ local function update_combinator(combinator, signal, count)
 		value = signal,
 		min = count,
 		max = count,
-		count = count
+		count = count,
 	})
 end
 
@@ -86,7 +88,8 @@ local power_usages = {
 local base_usage = 1000000 / 60
 local function update_power_usage(unit_data, count)
 	local powersource = unit_data.powersource
-	local power_usage = (math.ceil(count / (unit_data.stack_size or 1000)) ^ 0.35) * power_usages[settings.global["memory-unit-power-usage"].value]
+	local power_usage = (math.ceil(count / (unit_data.stack_size or 1000)) ^ 0.35)
+		* power_usages[settings.global["memory-unit-power-usage"].value]
 	power_usage = power_usage + base_usage
 	powersource.power_usage = power_usage
 	powersource.electric_buffer_size = power_usage
@@ -98,14 +101,14 @@ local update_slots = 4
 local function has_power(powersource, entity)
 	if powersource.energy < powersource.electric_buffer_size * 0.9 then
 		if powersource.energy ~= 0 then
-			rendering.draw_sprite {
+			rendering.draw_sprite({
 				sprite = "utility.electricity_icon",
 				x_scale = 0.5,
 				y_scale = 0.5,
 				target = entity,
 				surface = entity.surface,
-				time_to_live = 30
-			}
+				time_to_live = 30,
+			})
 		end
 		return false
 	end
@@ -122,11 +125,17 @@ local function memory_unit_corruption(unit_number, unit_data)
 	local powersource = unit_data.powersource
 	local combinator = unit_data.combinator
 
-	if entity.valid then entity.destroy() end
-	if powersource.valid then powersource.destroy() end
-	if combinator.valid then combinator.destroy() end
+	if entity.valid then
+		entity.destroy()
+	end
+	if powersource.valid then
+		powersource.destroy()
+	end
+	if combinator.valid then
+		combinator.destroy()
+	end
 
-	game.print {"memory-unit-corruption", unit_data.count, unit_data.item or "nothing"}
+	game.print({ "memory-unit-corruption", unit_data.count, unit_data.item or "nothing" })
 	storage.units[unit_number] = nil
 end
 
@@ -136,12 +145,16 @@ local function validity_check(unit_number, unit_data, force)
 		return true
 	end
 
-	if not force and not has_power(unit_data.powersource, unit_data.entity) then return true end
+	if not force and not has_power(unit_data.powersource, unit_data.entity) then
+		return true
+	end
 	return false
 end
 
 local function combine_tempatures(first_count, first_tempature, second_count, second_tempature)
-	if first_tempature == second_tempature then return first_tempature end
+	if first_tempature == second_tempature then
+		return first_tempature
+	end
 	local total_count = first_count + second_count
 	return (first_tempature * first_count / total_count) + (second_tempature * second_count / total_count)
 end
@@ -158,5 +171,5 @@ return {
 	is_spoilable = is_spoilable,
 	memory_unit_corruption = memory_unit_corruption,
 	validity_check = validity_check,
-	combine_tempatures = combine_tempatures
+	combine_tempatures = combine_tempatures,
 }
