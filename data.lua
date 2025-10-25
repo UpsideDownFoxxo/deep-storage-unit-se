@@ -18,7 +18,7 @@ circuit_wire_connection_points = {
 }
 
 local nothing = {
-	filename = "__deep-storage-unit__/graphics/entity/nothing.png",
+	filename = "__deep-storage-unit-se-fox__/graphics/entity/nothing.png",
 	priority = "extra-high",
 	size = 1,
 }
@@ -27,7 +27,7 @@ data:extend({
 	{
 		type = "item",
 		name = "memory-unit",
-		icon = "__deep-storage-unit__/graphics/icon/memory-unit.png",
+		icon = "__deep-storage-unit-se-fox__/graphics/icon/memory-unit.png",
 		icon_size = 64,
 		icon_mipmaps = 4,
 		stack_size = 10,
@@ -41,12 +41,12 @@ data:extend({
 		name = "memory-unit-with-tags",
 		icons = {
 			{
-				icon = "__deep-storage-unit__/graphics/icon/memory-unit.png",
+				icon = "__deep-storage-unit-se-fox__/graphics/icon/memory-unit.png",
 				icon_size = 64,
 				scale = 0.5,
 			},
 			{
-				icon = "__deep-storage-unit__/graphics/icon/packing-tape-50.png",
+				icon = "__deep-storage-unit-se-fox__/graphics/icon/packing-tape-50.png",
 				icon_size = 64,
 				icon_mipmaps = 4,
 			},
@@ -63,19 +63,19 @@ data:extend({
 	},
 	{
 		type = "container",
-		icon = "__deep-storage-unit__/graphics/icon/memory-unit.png",
+		icon = "__deep-storage-unit-se-fox__/graphics/icon/memory-unit.png",
 		icon_size = 64,
 		icon_mipmaps = 4,
 		name = "memory-unit",
 		inventory_size = 300,
 		picture = {
-			filename = "__deep-storage-unit__/graphics/entity/memory-unit.png",
+			filename = "__deep-storage-unit-se-fox__/graphics/entity/memory-unit.png",
 			height = 256,
 			priority = "high",
 			width = 256,
 			shift = { 0.59375, 0 },
 			hr_version = {
-				filename = "__deep-storage-unit__/graphics/entity/hr-memory-unit.png",
+				filename = "__deep-storage-unit-se-fox__/graphics/entity/hr-memory-unit.png",
 				height = 512,
 				priority = "high",
 				width = 512,
@@ -116,7 +116,7 @@ data:extend({
 	{
 		type = "technology",
 		name = "memory-unit",
-		icon = "__deep-storage-unit__/graphics/technology/memory-unit.png",
+		icon = "__deep-storage-unit-se-fox__/graphics/technology/memory-unit.png",
 		icon_size = 128,
 		effects = { {
 			recipe = "memory-unit",
@@ -137,6 +137,7 @@ data:extend({
 			time = 30,
 		},
 	},
+	---@type data.ElectricEnergyInterfacePrototype
 	{
 		type = "electric-energy-interface",
 		localised_name = { "entity-name.memory-unit" },
@@ -148,7 +149,7 @@ data:extend({
 		},
 		energy_usage = "1000W",
 		collision_box = { { -2.7, -2.7 }, { 2.7, 2.7 } },
-		icon = "__deep-storage-unit__/graphics/icon/memory-unit.png",
+		icon = "__deep-storage-unit-se-fox__/graphics/icon/memory-unit.png",
 		icon_size = 64,
 		icon_mipmaps = 4,
 		quality_indicator_scale = 0,
@@ -180,7 +181,7 @@ data:extend({
 			"placeable-off-grid",
 		},
 		hidden = true,
-		icon = "__deep-storage-unit__/graphics/icon/memory-unit.png",
+		icon = "__deep-storage-unit-se-fox__/graphics/icon/memory-unit.png",
 		icon_size = 64,
 		quality_indicator_scale = 0,
 		icon_mipmaps = 4,
@@ -211,14 +212,14 @@ data:extend({
 	{
 		type = "sprite",
 		name = "bulk-insert",
-		filename = "__deep-storage-unit__/graphics/icon/insert.png",
+		filename = "__deep-storage-unit-se-fox__/graphics/icon/insert.png",
 		size = { 100, 100 },
 		flags = { "gui-icon" },
 	},
 	{
 		type = "sprite",
 		name = "bulk-extract",
-		filename = "__deep-storage-unit__/graphics/icon/extract.png",
+		filename = "__deep-storage-unit-se-fox__/graphics/icon/extract.png",
 		size = { 100, 100 },
 		flags = { "gui-icon" },
 	},
