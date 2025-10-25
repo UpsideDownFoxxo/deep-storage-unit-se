@@ -48,7 +48,7 @@ function set_filter(unit_data)
 	local inventory = unit_data.inventory
 	local item = unit_data.item
 	local entity = unit_data.entity
-	local quality = unit_data.quality
+	local quality = unit_data.quality or "normal"
 
 	for i = 1, #inventory do
 		local stack = inventory[i]

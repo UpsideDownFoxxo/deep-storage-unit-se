@@ -236,7 +236,7 @@ local function prime_unit(event, element)
 
 	unit_data.count = stack.count
 	unit_data.item = stack.name
-	unit_data.quality = stack.quality.name
+	unit_data.quality = stack.quality.name or "normal"
 	unit_data.stack_size = stack.prototype.stack_size
 	unit_data.comfortable = unit_data.stack_size * #unit_data.inventory / 2
 	set_filter(unit_data)
