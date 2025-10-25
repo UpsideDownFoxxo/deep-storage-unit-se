@@ -4,15 +4,15 @@ local min = math.min
 local floor = math.floor
 
 local tier_borders = {
-	[0] = 4000,
-	[1] = 8000,
-	[2] = 16000,
-	[3] = 32000,
-	[4] = 64000,
-	[5] = 128000,
-	[6] = 256000,
-	[7] = 512000,
-	[8] = 1024000,
+	[0] = 400,
+	[1] = 800,
+	[2] = 1600,
+	[3] = 3200,
+	[4] = 6400,
+	[5] = 12800,
+	[6] = 25600,
+	[7] = 51200,
+	[8] = 102400,
 }
 
 local base_graphs = {
@@ -167,9 +167,7 @@ local base_usage = 1000000 / 60
 local function update_power_usage(unit_data, count)
 	local powersource = unit_data.powersource
 	local power_usage = power_table[unit_data.energy_tier or 0](math.ceil(count / (unit_data.stack_size or 1000)))
-		/ 60
-		* 1000
-	power_usage = power_usage + base_usage
+	power_usage = power_usage * 1000 / 60 + base_usage
 	power_usage = power_usage * power_usages[(settings.global["memory-unit-power-usage"]).value]
 	unit_data.operation_cost = power_usage
 
