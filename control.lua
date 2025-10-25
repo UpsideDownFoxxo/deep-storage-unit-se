@@ -6,12 +6,42 @@ local update_slots = shared.update_slots
 local compactify = shared.compactify
 local validity_check = shared.validity_check
 
+local beacons_max_count = {
+	["se-wide-beacon"] = 0,
+	["se-wide-beacon-2"] = 0,
+	["se-compact-beacon"] = 4,
+	["se-compact-beacon-2"] = 4,
+}
+
 local function setup()
 	storage.units = storage.units or {}
 
 	if remote.interfaces["PickerDollies"] then
 		remote.call("PickerDollies", "add_blacklist_name", "memory-unit", true)
 		remote.call("PickerDollies", "add_blacklist_name", "memory-unit-combinator", true)
+
+		if remote.interfaces["PickerDollies"]["dolly_moved_entity_id"] then
+			---@diagnostic disable-next-line
+			script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), function(event)
+				---@diagnostic disable-next-line: undefined-field
+				local entity = event.moved_entity --[[@as LuaEntity]]
+				if entity.type == "beacon" then
+					local surface = entity.surface
+
+					local affected_storages = surface.find_entities_filtered({
+						area = shared.pad_area(
+							entity.bounding_box,
+							prototypes.entity[entity.name].get_supply_area_distance() + 1
+						),
+						name = "memory-unit",
+					})
+
+					for _, value in pairs(affected_storages) do
+						update_storage_beacons(storage.units[value.unit_number], entity.name)
+					end
+				end
+			end)
+		end
 	end
 end
 
@@ -91,12 +121,152 @@ local function detect_item(unit_data)
 	return false
 end
 
+---@param unit_data table
+local function overload_storage(unit_data, name)
+	-- map alert
+	for _, player in pairs(unit_data.entity.force.players) do
+		local conflict_string
+		if beacons_max_count[name] == 0 then
+			conflict_string = "entity-overloading.invalid-beacon-tooltip"
+		else
+			conflict_string = "entity-overloading.invalid-beacon-tooltip-too-many"
+		end
+		player.add_custom_alert(unit_data.entity, { type = "virtual", name = "se-beacon-overload" }, {
+			conflict_string,
+			"[img=entity/" .. name .. "]",
+			beacons_max_count[name],
+		}, true)
+	end
+
+	-- create sprite on machine
+	if not unit_data.overloaded_sprite or not unit_data.overloaded_sprite.valid then
+		unit_data.overloaded_sprite = rendering.draw_sprite({
+			sprite = "virtual-signal/se-beacon-overload",
+			surface = unit_data.entity.surface,
+			target = unit_data.entity,
+		})
+	end
+
+	unit_data.overloads = unit_data.overloads or {}
+	unit_data.overloads[name] = true
+end
+
+local function overload_storage_clear(unit_data)
+	if unit_data.overloaded_sprite then
+		unit_data.overloaded_sprite.destroy()
+	end
+
+	unit_data.overloaded_sprite = nil
+end
+
+local function update_storage_beacons(unit_data, name, exclude)
+	---@type LuaEntity
+	local unit = unit_data.entity
+
+	unit_data.beacons = unit_data.beacons or {}
+
+	unit_data.beacons[name] = unit.surface.find_entities_filtered({
+		area = shared.pad_area(unit.bounding_box, prototypes.entity[name].get_supply_area_distance()),
+		name = name,
+	})
+	local beacons = unit_data.beacons[name]
+
+	if exclude then
+		for i = #beacons, 1, -1 do
+			local beacon = unit_data.beacons[name][i]
+			if beacon.unit_number == exclude.unit_number then
+				table.remove(beacons, i)
+			end
+		end
+	end
+
+	local max_count = beacons_max_count[name]
+
+	unit_data.overloads = unit_data.overloads or {}
+
+	if max_count and #beacons > max_count then
+		unit_data.overloads[name] = true
+	else
+		unit_data.overloads[name] = nil
+	end
+
+	local beacon, _ = next(unit_data.overloads)
+	if beacon then
+		overload_storage(unit_data, beacon)
+	else
+		overload_storage_clear(unit_data)
+	end
+
+	game.print(serpent.line(unit_data.beacons))
+end
+
+---Calculates the tiers for the two different cores of the storage
+---@param unit_data table
+local function calculate_tiers(unit_data)
+	if not unit_data.effects then
+		return
+	end
+
+	unit_data.conversion_tier = shared.clamp(math.floor(unit_data.effects.speed), 17, 0)
+	unit_data.energy_tier = shared.clamp(math.floor(-unit_data.effects.energy / 72 * 4), 8, 0)
+end
+
+local function update_inventory_limits(unit_data)
+	if not unit_data.stack_size then
+		return
+	end
+
+	local inventory_limit
+
+	if unit_data.max_conversion_speed then
+		inventory_limit = math.min(
+			--- we want to be able to buffer 8 cycles in either direction
+			math.ceil(unit_data.max_conversion_speed * 8 / unit_data.stack_size) * 2,
+			--- use inventory size as maximum
+			#unit_data.inventory
+		)
+	else
+		inventory_limit = 2
+	end
+
+	unit_data.comfortable = unit_data.stack_size * inventory_limit / 2
+	unit_data.inventory.set_bar(inventory_limit + 1)
+end
+
+local function update_storage_effects(unit_data)
+	local effects = { speed = 0, energy = 0 }
+
+	---@param beacons LuaEntity[]
+	for name, beacons in pairs(unit_data.beacons or {}) do
+		for _, beacon in pairs(beacons) do
+			if beacon.energy == 0 then
+				goto continue
+			end
+
+			if beacon.effects then
+				local effectivity = prototypes.entity[name].distribution_effectivity
+				effects.speed = effects.speed + (beacon.effects.speed or 0) * effectivity
+				effects.energy = effects.energy + (beacon.effects.consumption or 0) * effectivity
+			end
+
+			::continue::
+		end
+	end
+
+	unit_data.effects = effects
+
+	calculate_tiers(unit_data)
+
+	unit_data.max_conversion_speed = (unit_data.conversion_tier + 1) * (update_rate * update_slots)
+
+	update_inventory_limits(unit_data)
+end
+
 function update_unit(unit_data, unit_number, force)
 	local entity = unit_data.entity
-	local powersource = unit_data.powersource
-	local combinator = unit_data.combinator
-	local container = unit_data.container
 	local inventory = unit_data.inventory
+
+	update_storage_effects(unit_data)
 
 	if validity_check(unit_number, unit_data, force) then
 		return
@@ -111,6 +281,8 @@ function update_unit(unit_data, unit_number, force)
 	if item == nil then
 		return
 	end
+
+	local max_conversion_speed = unit_data.max_conversion_speed or 0
 	local comfortable = unit_data.comfortable
 	local quality = unit_data.quality
 
@@ -118,9 +290,11 @@ function update_unit(unit_data, unit_number, force)
 		name = item,
 		quality = quality,
 	})
+
+	local delta = math.min(math.abs(inventory_count - comfortable), max_conversion_speed)
+
 	if inventory_count > comfortable then
-		local amount_removed =
-			inventory.remove({ name = item, count = inventory_count - comfortable, quality = quality })
+		local amount_removed = inventory.remove({ name = item, count = delta, quality = quality })
 		unit_data.count = unit_data.count + amount_removed
 		inventory_count = inventory_count - amount_removed
 		changed = true
@@ -128,10 +302,8 @@ function update_unit(unit_data, unit_number, force)
 		if unit_data.previous_inventory_count ~= inventory_count then
 			changed = true
 		end
-		local to_add = comfortable - inventory_count
-		if unit_data.count < to_add then
-			to_add = unit_data.count
-		end
+		local to_add = math.min(delta, unit_data.count)
+
 		if to_add ~= 0 then
 			local amount_added = entity.insert({ name = item, count = to_add, quality = quality })
 			unit_data.count = unit_data.count - amount_added
@@ -158,11 +330,9 @@ end)
 local combinator_shift_x = 2.25
 local combinator_shift_y = 1.75
 
-local function on_created(event)
+local function on_created_storage(event)
 	local entity = event.entity
-	if entity.name ~= "memory-unit" then
-		return
-	end
+
 	local position = entity.position
 	local surface = entity.surface
 	local force = entity.force
@@ -189,6 +359,7 @@ local function on_created(event)
 		count = 0,
 		powersource = powersource,
 		combinator = combinator,
+		containment_field = 0,
 		quality = "normal",
 		inventory = entity.get_inventory(defines.inventory.chest),
 		lag_id = math.random(0, update_slots - 1),
@@ -212,6 +383,30 @@ local function on_created(event)
 		game.print({ "mod-gui.migrated-item", tags.count, tags.name, tags.quality or "normal" })
 	else
 		shared.update_power_usage(unit_data, 0)
+	end
+end
+
+local function on_created_beacon(event)
+	local entity = event.entity --[[@as LuaEntity]]
+	local surface = entity.surface
+
+	local affected_storages = surface.find_entities_filtered({
+		area = shared.pad_area(entity.bounding_box, prototypes.entity[entity.name].get_supply_area_distance()),
+		name = "memory-unit",
+	})
+
+	for _, unit in ipairs(affected_storages) do
+		update_storage_beacons(storage.units[unit.unit_number], entity.name)
+	end
+end
+
+local function on_created(event)
+	local entity = event.entity
+	if entity.name == "memory-unit" then
+		on_created_storage(event)
+	end
+	if entity.type == "beacon" then
+		on_created_beacon(event)
 	end
 end
 
@@ -291,7 +486,13 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 		stack_size = unit_data.stack_size,
 		inventory = destination.get_inventory(defines.inventory.chest),
 		lag_id = math.random(0, update_slots - 1),
+		containment_field = unit_data.containment_field,
 	}
+
+	for name, _ in pairs(prototypes.get_entity_filtered({ { filter = "type", type = "beacon" } })) do
+		update_storage_beacons(unit_data, name)
+	end
+
 	storage.units[destination.unit_number] = unit_data
 
 	if item then
@@ -300,7 +501,7 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 	end
 end)
 
-local function on_destroyed(event)
+local function on_destroyed_storage(event)
 	local entity = event.entity
 	if entity.name ~= "memory-unit" then
 		return
@@ -331,6 +532,29 @@ local function on_destroyed(event)
 				quality,
 			},
 		})
+	end
+end
+
+local function on_destroyed_beacon(event)
+	local entity = event.entity --[[@as LuaEntity]]
+	local surface = entity.surface
+
+	local affected_storages = surface.find_entities_filtered({
+		area = shared.pad_area(entity.bounding_box, prototypes.entity[entity.name].get_supply_area_distance()),
+		name = "memory-unit",
+	})
+
+	for _, value in pairs(affected_storages) do
+		update_storage_beacons(storage.units[value.unit_number], entity.name, entity)
+	end
+end
+
+local function on_destroyed(event)
+	local entity = event.entity
+	if entity.name == "memory-unit" then
+		on_destroyed_storage(event)
+	elseif entity.type == "beacon" then
+		on_destroyed_beacon(event)
 	end
 end
 

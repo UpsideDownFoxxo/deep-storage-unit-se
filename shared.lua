@@ -3,6 +3,64 @@
 local min = math.min
 local floor = math.floor
 
+local tier_borders = {
+	[0] = 4000,
+	[1] = 8000,
+	[2] = 16000,
+	[3] = 32000,
+	[4] = 64000,
+	[5] = 128000,
+	[6] = 256000,
+	[7] = 512000,
+	[8] = 1024000,
+}
+
+local base_graphs = {
+	[0] = function(x)
+		return 100 * math.pow(x, 0.9)
+	end,
+	[1] = function(x)
+		return 90 * math.pow(x, 0.875)
+	end,
+	[2] = function(x)
+		return 80 * math.pow(x, 0.85)
+	end,
+	[3] = function(x)
+		return 70 * math.pow(x, 0.825)
+	end,
+	[4] = function(x)
+		return 60 * math.pow(x, 0.8)
+	end,
+	[5] = function(x)
+		return 50 * math.pow(x, 0.775)
+	end,
+	[6] = function(x)
+		return 40 * math.pow(x, 0.75)
+	end,
+	[7] = function(x)
+		return 30 * math.pow(x, 0.725)
+	end,
+	[8] = function(x)
+		return 20 * math.pow(x, 0.7)
+	end,
+}
+
+local transition_heights = {}
+
+--- created to reflect https://www.desmos.com/calculator/tqogtkoo5d
+---@type table <number,function<number,number>>
+local power_table = { tier_borders = tier_borders }
+
+transition_heights[0] = 0
+power_table[0] = base_graphs[0]
+
+for i = 1, 8, 1 do
+	transition_heights[i] = -base_graphs[i](tier_borders[i - 1]) + power_table[i - 1](tier_borders[i - 1])
+	power_table[i] = function(x)
+		return transition_heights[i] + base_graphs[i](x)
+	end
+end
+
 local function compactify(n)
 	n = floor(n)
 
@@ -23,6 +81,28 @@ local function compactify(n)
 	end
 
 	return { "big-numbers." .. suffix, n }
+end
+
+---pad an area by a given amount
+---@param area BoundingBox
+---@param padding number
+---@return BoundingBox
+local function pad_area(area, padding)
+	for index1, value1 in pairs(area) do
+		for index2, value2 in pairs(value1) do
+			if index1 == 1 or index1 == "left_top" then
+				area[index1][index2] = value2 - padding
+			else
+				area[index1][index2] = value2 + padding
+			end
+		end
+	end
+
+	return area
+end
+
+local function clamp(is, max, min)
+	return math.max(min, math.min(is, max))
 end
 
 local function open_inventory(player)
@@ -71,28 +151,35 @@ end
 
 local power_usages = {
 	["0W"] = 0,
-	["60kW"] = 1000,
-	["180kW"] = 3000,
-	["300kW"] = 5000,
-	["480kW"] = 8000,
-	["600kW"] = 10000,
-	["1.2MW"] = 20000,
-	["2.4MW"] = 40000,
-	["3.6MW"] = 40000 / 2.4 * 3.6,
-	["5MW"] = 40000 / 2.4 * 5,
-	["10MW"] = 40000 / 2.4 * 10,
-	["20MW"] = 40000 / 2.4 * 20,
-	["50MW"] = 40000 / 2.4 * 50,
+	["60kW"] = 0.2,
+	["180kW"] = 0.6,
+	["300kW"] = 1,
+	["480kW"] = 1.6,
+	["600kW"] = 2,
+	["1.2MW"] = 4,
+	["2.4MW"] = 8,
 }
 
 local base_usage = 1000000 / 60
+---updates the power usage for the given unit
+---@param unit_data any
+---@param count any
 local function update_power_usage(unit_data, count)
 	local powersource = unit_data.powersource
-	local power_usage = (math.ceil(count / (unit_data.stack_size or 1000)) ^ 0.35)
-		* power_usages[settings.global["memory-unit-power-usage"].value]
+	local power_usage = power_table[unit_data.energy_tier or 0](math.ceil(count / (unit_data.stack_size or 1000)))
+		/ 60
+		* 1000
 	power_usage = power_usage + base_usage
+	power_usage = power_usage * power_usages[(settings.global["memory-unit-power-usage"]).value]
+	unit_data.operation_cost = power_usage
+
+	if unit_data.containment_field < settings.global["memory-unit-se-fox-containment-field"].value then -- we need to charge the containment field, increase the power usage
+		power_usage = power_usage * 1.2
+	end
+
 	powersource.power_usage = power_usage
 	powersource.electric_buffer_size = power_usage
+	return power_usage
 end
 
 local update_rate = 15
@@ -172,4 +259,6 @@ return {
 	memory_unit_corruption = memory_unit_corruption,
 	validity_check = validity_check,
 	combine_tempatures = combine_tempatures,
+	pad_area = pad_area,
+	clamp = clamp,
 }
