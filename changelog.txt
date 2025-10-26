@@ -2,8 +2,7 @@
 Version: 2.2.0
 Date: 2025-10-26
   Features:
-    - Port of subsystems (no UI)
-    - Port of UI
+    - Full 2.0 Port
   Balancing:
     - tweak power curve
 ---------------------------------------------------------------------------------------------------
@@ -11,59 +10,4 @@ Version: 2.1.0
 Date: 2025-10-25
   Features:
     - Restore recipe and place in tech tree.
-  Bugfixes:
-    - transition assets to new namespace
 ---------------------------------------------------------------------------------------------------
-Version: 1.0.0
-Date: 2025-10-25
-  Features:
-    - Added additional power consumption options in the mod settings.…  … Now you can go all the way up to 50MW. (Previous limit was 2.4MW)
-    - Added automatic portal deployment via https://github.com/fgardt/factorio-mod-template
-    - Added support for quality
-    - Updated for 2.0
-  Compatibility:
-    - Added incompatiblity with Space Exploration. Please use the fork instead https://mods.factorio.com/mod/deep-storage-unit-se-fox
-  Bugfixes:
-    - Allowed science packs to be inserted into memory units.
-    - Blocked memory units from going to space in a rocket.
-    - Blocked spoilables from being stored in the memory unit. Resolves [#6](https://github.com/UpsideDownFoxxo/deep-storage-unit-se/issues/6)
-    - Cloned units no longer duplicate subcomponents when area-cloned
-    - Cloned units spilling their contents when quality mod is not installed
-    - Fix crash from previous update
-    - Fix quality units not being preserved. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/15
-    - Fixed a crash when memory storage contents are deleted in a migration.
-    - Fixed crash related to spill_item_stack(). Resolves [#3](https://github.com/UpsideDownFoxxo/deep-storage-unit-se/issues/3)
-    - Fixed crash when clicking bulk io buttons in remote view.
-    - Fixed items sometimes being spilled. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/10
-    - Fixed quality not being perserved when the unit is mined. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/21. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/17
-    - Update info.json
-  Changes:
-    - Unpacked raw memory units can now be sent in the rocket silo. Resolves [#7](https://github.com/UpsideDownFoxxo/deep-storage-unit-se/issues/7)
-    - Updated vscode settings json for 2.0
----------------------------------------------------------------------------------------------------
-Version: 1.0.0
-Date: 2025-10-25
-  Features:
-    - Added additional power consumption options in the mod settings.…  … Now you can go all the way up to 50MW. (Previous limit was 2.4MW)
-    - Added automatic portal deployment via https://github.com/fgardt/factorio-mod-template
-    - Added support for quality
-    - Updated for 2.0
-  Compatibility:
-    - Added incompatiblity with Space Exploration. Please use the fork instead https://mods.factorio.com/mod/deep-storage-unit-se-fox
-  Bugfixes:
-    - Allowed science packs to be inserted into memory units.
-    - Blocked memory units from going to space in a rocket.
-    - Blocked spoilables from being stored in the memory unit. Resolves [#6](https://github.com/UpsideDownFoxxo/deep-storage-unit-se/issues/6)
-    - Cloned units no longer duplicate subcomponents when area-cloned
-    - Cloned units spilling their contents when quality mod is not installed
-    - Fix crash from previous update
-    - Fix quality units not being preserved. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/15
-    - Fixed a crash when memory storage contents are deleted in a migration.
-    - Fixed crash related to spill_item_stack(). Resolves [#3](https://github.com/UpsideDownFoxxo/deep-storage-unit-se/issues/3)
-    - Fixed crash when clicking bulk io buttons in remote view.
-    - Fixed items sometimes being spilled. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/10
-    - Fixed quality not being perserved when the unit is mined. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/21. Resolves https://github.com/notnotmelon/deep-storage-unit/issues/17
-    - Update info.json
-  Changes:
-    - Unpacked raw memory units can now be sent in the rocket silo. Resolves [#7](https://github.com/UpsideDownFoxxo/deep-storage-unit-se/issues/7)
-    - Updated vscode settings json for 2.0
