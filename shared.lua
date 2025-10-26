@@ -259,4 +259,5 @@ return {
 	combine_tempatures = combine_tempatures,
 	pad_area = pad_area,
 	clamp = clamp,
+	power_table = power_table,
 }

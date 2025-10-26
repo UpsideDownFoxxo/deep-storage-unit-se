@@ -5,6 +5,7 @@ local update_rate = shared.update_rate
 local update_slots = shared.update_slots
 local compactify = shared.compactify
 local validity_check = shared.validity_check
+local has_power = shared.has_power
 
 local beacons_max_count = {
 	["se-wide-beacon"] = 0,
@@ -211,7 +212,19 @@ local function calculate_tiers(unit_data)
 	unit_data.energy_tier = shared.clamp(math.floor(-unit_data.effects.energy / 72 * 4), 8, 0)
 end
 
-local function update_inventory_limits(unit_data)
+local function calculate_needed(unit_data)
+	local conversion_tier, energy_tier = unit_data.conversion_tier, unit_data.energy_tier
+
+	-- percentage needed for the next tier
+
+	conversion_tier = conversion_tier + 1
+	energy_tier = (energy_tier + 1) * 72
+
+	unit_data.conversion_to_next_tier = conversion_tier - unit_data.effects.speed
+	unit_data.energy_to_next_tier = energy_tier + unit_data.effects.energy -- energy is negative
+end
+
+function update_inventory_limits(unit_data)
 	if not unit_data.stack_size then
 		return
 	end
@@ -256,21 +269,98 @@ local function update_storage_effects(unit_data)
 	unit_data.effects = effects
 
 	calculate_tiers(unit_data)
+	calculate_needed(unit_data)
 
 	unit_data.max_conversion_speed = (unit_data.conversion_tier + 1) * (update_rate * update_slots)
 
 	update_inventory_limits(unit_data)
 end
 
+local function apply_item_loss(unit_data)
+	local powersource = unit_data.powersource
+	local inventory = unit_data.inventory
+	local item = unit_data.item
+
+	if not item or not powersource or not unit_data.count then
+		return false --storage is not initialized yet or has invalid properties that prevent calculations
+	end
+
+	if powersource.energy >= powersource.electric_buffer_size * 0.5 then -- storage has enough power, do not leak items
+		if has_power(unit_data.powersource, unit_data.entity) then
+			---@diagnostic disable-next-line: param-type-mismatch
+			unit_data.containment_field = math.min(
+				unit_data.containment_field + 4,
+				---@diagnostic disable-next-line: param-type-mismatch
+				settings.global["memory-unit-se-fox-containment-field"].value
+			)
+			return false
+		end
+	end
+
+	if unit_data.containment_field > 0 then -- storage has remaining containment field, drain that and do not delete items
+		unit_data.containment_field = unit_data.containment_field - 1
+
+		rendering.draw_sprite({
+			sprite = "utility/warning_icon",
+			surface = unit_data.entity.surface,
+			target = unit_data.entity,
+			time_to_live = 30,
+			x_scale = 0.5,
+			y_scale = 0.5,
+		})
+		for _, player in pairs(unit_data.entity.force.players) do
+			player.add_custom_alert(
+				unit_data.entity,
+				{ type = "item", name = "energy-shield-equipment" },
+				{ "alert.power-outage-warning" },
+				true
+			)
+		end
+	else
+		if unit_data.count > 0 then
+			local inventory_count = inventory.get_item_count(item) -- no containment field left, slowly delete items
+			unit_data.count = unit_data.count * (1 - settings.global["memory-unit-se-fox-item-loss"].value)
+			update_unit_exterior(unit_data, inventory_count)
+
+			local signal = "virtual-signal/se-anomaly" -- the anomaly is just a cooler item that fits
+			rendering.draw_sprite({
+				sprite = signal,
+				surface = unit_data.entity.surface,
+				target = unit_data.entity,
+				time_to_live = 30,
+				x_scale = 1.5,
+				y_scale = 1.5,
+				tint = {},
+			})
+			rendering.draw_sprite({
+				sprite = signal,
+				surface = unit_data.entity.surface,
+				target = unit_data.entity,
+				time_to_live = 30,
+			})
+
+			for _, player in pairs(unit_data.entity.force.players) do
+				player.add_custom_alert(
+					unit_data.entity,
+					{ type = "virtual", name = "se-anomaly" },
+					{ "alert.power-outage-critical" },
+					true
+				)
+			end
+		end
+		return true
+	end
+end
+
 function update_unit(unit_data, unit_number, force)
 	local entity = unit_data.entity
 	local inventory = unit_data.inventory
 
-	update_storage_effects(unit_data)
-
-	if validity_check(unit_number, unit_data, force) then
+	if validity_check(unit_number, unit_data, true) then
 		return
 	end
+
+	update_storage_effects(unit_data)
 
 	local changed = false
 
@@ -282,6 +372,8 @@ function update_unit(unit_data, unit_number, force)
 		return
 	end
 
+	unit_data.last_action = 0
+
 	local max_conversion_speed = unit_data.max_conversion_speed or 0
 	local comfortable = unit_data.comfortable
 	local quality = unit_data.quality
@@ -291,30 +383,39 @@ function update_unit(unit_data, unit_number, force)
 		quality = quality,
 	})
 
-	local delta = math.min(math.abs(inventory_count - comfortable), max_conversion_speed)
+	local should_run = false
+	if not force then
+		should_run = not apply_item_loss(unit_data)
+	end
 
-	if inventory_count > comfortable then
-		local amount_removed = inventory.remove({ name = item, count = delta, quality = quality })
-		unit_data.count = unit_data.count + amount_removed
-		inventory_count = inventory_count - amount_removed
-		changed = true
-	elseif inventory_count < comfortable then
-		if unit_data.previous_inventory_count ~= inventory_count then
+	if not force and should_run then
+		local delta = math.min(math.abs(inventory_count - comfortable), max_conversion_speed)
+
+		if inventory_count > comfortable then
+			local amount_removed = inventory.remove({ name = item, count = delta, quality = quality })
+			unit_data.count = unit_data.count + amount_removed
+			inventory_count = inventory_count - amount_removed
+			unit_data.last_action = -amount_removed
 			changed = true
-		end
-		local to_add = math.min(delta, unit_data.count)
+		elseif inventory_count < comfortable then
+			if unit_data.previous_inventory_count ~= inventory_count then
+				changed = true
+			end
+			local to_add = math.min(delta, unit_data.count)
 
-		if to_add ~= 0 then
-			local amount_added = entity.insert({ name = item, count = to_add, quality = quality })
-			unit_data.count = unit_data.count - amount_added
-			inventory_count = inventory_count + amount_added
+			if to_add ~= 0 then
+				local amount_added = entity.insert({ name = item, count = to_add, quality = quality })
+				unit_data.count = unit_data.count - amount_added
+				inventory_count = inventory_count + amount_added
+				unit_data.last_action = amount_added
+			end
 		end
 	end
 
 	if force or changed then
 		inventory.sort_and_merge()
-		update_unit_exterior(unit_data, inventory_count)
 	end
+	update_unit_exterior(unit_data, inventory_count)
 end
 
 script.on_nth_tick(update_rate, function(event)
