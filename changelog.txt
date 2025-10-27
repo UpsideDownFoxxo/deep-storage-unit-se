@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.1
+Date: 2025-10-27
+  Bugfixes:
+    - added migration to add missing fields to existing units
+    - Duplication glitch inherited from upstream
+    - Fully specify unit_data for newly created units to avoid missing properties
+    - Port missing utility function
+---------------------------------------------------------------------------------------------------
 Version: 2.2.0
 Date: 2025-10-26
   Features:
