@@ -432,7 +432,7 @@ function update_unit(unit_data, unit_number, force)
 			if unit_data.previous_inventory_count ~= inventory_count then
 				changed = true
 			end
-			local to_add = math.min(delta, unit_data.count)
+			local to_add = math.floor(math.min(delta, unit_data.count))
 
 			if to_add ~= 0 then
 				local amount_added = entity.insert({ name = item, count = to_add, quality = quality })
@@ -549,6 +549,9 @@ local function on_created(event)
 	end
 	if entity.type == "beacon" then
 		on_created_beacon(event)
+	end
+	if entity.name == "entity-ghost" and entity.ghost_name == "memory-unit" then
+		entity.tags = nil
 	end
 end
 
