@@ -244,6 +244,26 @@ local function combine_tempatures(first_count, first_tempature, second_count, se
 	return (first_tempature * first_count / total_count) + (second_tempature * second_count / total_count)
 end
 
+local basic_item_types =
+	{ ["item"] = true, ["capsule"] = true, ["gun"] = true, ["rail-planner"] = true, ["module"] = true }
+---return whether the given item is able to be stored
+---@param item string
+---@return boolean
+local function check_for_basic_item(item)
+	local items_with_metadata = storage.items_with_metadata
+	if not items_with_metadata then
+		items_with_metadata = {}
+		for item_name, prototype in pairs(prototypes.item) do
+			if not basic_item_types[prototype.type] then
+				items_with_metadata[item_name] = true
+			end
+		end
+		storage.items_with_metadata = items_with_metadata
+	end
+
+	return not items_with_metadata[item] and not is_spoilable(item)
+end
+
 return {
 	update_display_text = update_display_text,
 	update_combinator = update_combinator,
@@ -260,4 +280,5 @@ return {
 	pad_area = pad_area,
 	clamp = clamp,
 	power_table = power_table,
+	check_for_basic_item = check_for_basic_item,
 }
