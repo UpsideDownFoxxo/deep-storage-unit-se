@@ -474,9 +474,18 @@ end
 local function prime_unit(event, element)
 	local player = game.get_player(event.player_index) --[[@as LuaPlayer]]
 	local stack = player.cursor_stack
-	if not stack or not stack.valid_for_read or not shared.check_for_basic_item(stack.name) then
+	if not stack or not stack.valid_for_read then
 		return
 	end
+
+	if not shared.check_for_basic_item(stack.name) then
+		player.create_local_flying_text({
+			create_at_cursor = true,
+			text = { "entity-status.cannot-store", prototypes.item[stack.name].localised_name },
+		})
+		return
+	end
+
 	local unit_data = storage.units[element.tags.unit_number]
 
 	unit_data.count = stack.count
