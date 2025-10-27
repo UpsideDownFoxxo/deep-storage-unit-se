@@ -1,5 +1,29 @@
 require("gui")
 
+---@class UnitData
+---@field entity LuaEntity
+---@field item string?
+---@field quality QualityID?
+---@field stack_size number?
+---@field comfortable number?
+---@field inventory LuaInventory
+---@field beacons table<string,LuaEntity[]>
+---@field overloads table<string,boolean>
+---@field conversion_tier number
+---@field energy_tier number
+---@field conversion_to_next_tier number
+---@field energy_to_next_tier number
+---@field max_conversion_speed number
+---@field count number
+---@field previous_inventory_count number
+---@field lag_id number
+---@field containment_field number
+---@field last_action number
+---@field overloaded_sprite LuaRenderObject?
+---@field effects {speed:number,energy:number}?
+---@field powersource LuaEntity
+---@field combinator LuaEntity
+
 local shared = require("shared")
 local update_rate = shared.update_rate
 local update_slots = shared.update_slots
@@ -15,6 +39,7 @@ local beacons_max_count = {
 }
 
 local function setup()
+	---@type table<number,UnitData>
 	storage.units = storage.units or {}
 
 	if remote.interfaces["PickerDollies"] then
@@ -75,6 +100,7 @@ local function update_unit_exterior(unit_data, inventory_count)
 	shared.update_power_usage(unit_data, total_count)
 end
 
+---@param unit_data UnitData
 function set_filter(unit_data)
 	local inventory = unit_data.inventory
 	local item = unit_data.item
@@ -106,6 +132,7 @@ function set_filter(unit_data)
 	end
 end
 
+---@param unit_data UnitData
 local function detect_item(unit_data)
 	local inventory = unit_data.inventory
 	for _, itemstack in pairs(inventory.get_contents()) do
@@ -122,7 +149,7 @@ local function detect_item(unit_data)
 	return false
 end
 
----@param unit_data table
+---@param unit_data UnitData
 local function overload_storage(unit_data, name)
 	-- map alert
 	for _, player in pairs(unit_data.entity.force.players) do
@@ -160,7 +187,8 @@ local function overload_storage_clear(unit_data)
 	unit_data.overloaded_sprite = nil
 end
 
-local function update_storage_beacons(unit_data, name, exclude)
+---@param unit_data UnitData
+function update_storage_beacons(unit_data, name, exclude)
 	---@type LuaEntity
 	local unit = unit_data.entity
 
@@ -197,12 +225,10 @@ local function update_storage_beacons(unit_data, name, exclude)
 	else
 		overload_storage_clear(unit_data)
 	end
-
-	game.print(serpent.line(unit_data.beacons))
 end
 
 ---Calculates the tiers for the two different cores of the storage
----@param unit_data table
+---@param unit_data UnitData
 local function calculate_tiers(unit_data)
 	if not unit_data.effects then
 		return
@@ -224,6 +250,7 @@ local function calculate_needed(unit_data)
 	unit_data.energy_to_next_tier = energy_tier + unit_data.effects.energy -- energy is negative
 end
 
+---@param unit_data UnitData
 function update_inventory_limits(unit_data)
 	if not unit_data.stack_size then
 		return
@@ -246,6 +273,7 @@ function update_inventory_limits(unit_data)
 	unit_data.inventory.set_bar(inventory_limit + 1)
 end
 
+---@param unit_data UnitData
 local function update_storage_effects(unit_data)
 	local effects = { speed = 0, energy = 0 }
 
@@ -276,6 +304,7 @@ local function update_storage_effects(unit_data)
 	update_inventory_limits(unit_data)
 end
 
+---@param unit_data UnitData
 local function apply_item_loss(unit_data)
 	local powersource = unit_data.powersource
 	local inventory = unit_data.inventory
@@ -318,7 +347,8 @@ local function apply_item_loss(unit_data)
 		end
 	else
 		if unit_data.count > 0 then
-			local inventory_count = inventory.get_item_count(item) -- no containment field left, slowly delete items
+			-- item is checked for existence above, unsure why the LSP cannot figure it out, so cast
+			local inventory_count = inventory.get_item_count(item --[[@as string]]) -- no containment field left, slowly delete items
 			unit_data.count = unit_data.count * (1 - settings.global["memory-unit-se-fox-item-loss"].value)
 			update_unit_exterior(unit_data, inventory_count)
 
@@ -352,6 +382,7 @@ local function apply_item_loss(unit_data)
 	end
 end
 
+---@param unit_data UnitData
 function update_unit(unit_data, unit_number, force)
 	local entity = unit_data.entity
 	local inventory = unit_data.inventory
@@ -455,6 +486,7 @@ local function on_created_storage(event)
 	})
 	powersource.destructible = false
 
+	---@type UnitData
 	local unit_data = {
 		entity = entity,
 		count = 0,
@@ -464,6 +496,15 @@ local function on_created_storage(event)
 		quality = "normal",
 		inventory = entity.get_inventory(defines.inventory.chest),
 		lag_id = math.random(0, update_slots - 1),
+		beacons = {},
+		overloads = {},
+		conversion_tier = 0,
+		conversion_to_next_tier = 0,
+		energy_tier = 0,
+		energy_to_next_tier = 0,
+		max_conversion_speed = 0,
+		previous_inventory_count = 0,
+		last_action = 0,
 	}
 	storage.units[entity.unit_number] = unit_data
 
@@ -524,6 +565,7 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 	end
 	local destination = event.destination
 
+	---@type UnitData
 	local unit_data = storage.units[entity.unit_number]
 	local position = destination.position
 	local surface = destination.surface
@@ -578,17 +620,26 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 
 	local item = unit_data.item
 	unit_data = {
-		powersource = powersource,
-		combinator = combinator,
+		powersource = assert(powersource),
+		combinator = assert(combinator),
 		item = item,
 		count = unit_data.count,
 		entity = destination,
 		comfortable = unit_data.comfortable,
 		stack_size = unit_data.stack_size,
-		inventory = destination.get_inventory(defines.inventory.chest),
+		inventory = assert(destination.get_inventory(defines.inventory.chest)),
 		lag_id = math.random(0, update_slots - 1),
+		overloads = unit_data.overloads,
 		containment_field = unit_data.containment_field,
-	}
+		conversion_tier = unit_data.conversion_tier,
+		conversion_to_next_tier = unit_data.conversion_to_next_tier,
+		energy_tier = unit_data.energy_tier,
+		energy_to_next_tier = unit_data.energy_to_next_tier,
+		max_conversion_speed = unit_data.max_conversion_speed,
+		last_action = unit_data.last_action,
+		previous_inventory_count = unit_data.previous_inventory_count,
+		beacons = {},
+	} --[[@as UnitData]]
 
 	for name, _ in pairs(prototypes.get_entity_filtered({ { filter = "type", type = "beacon" } })) do
 		update_storage_beacons(unit_data, name)
@@ -607,7 +658,6 @@ local function on_destroyed_storage(event)
 	if entity.name ~= "memory-unit" then
 		return
 	end
-	game.print("destroy")
 
 	local unit_data = storage.units[entity.unit_number]
 	storage.units[entity.unit_number] = nil

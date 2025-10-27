@@ -36,6 +36,7 @@ local function mark_warning(header, bool)
 end
 
 local function update_gui(gui, fresh_gui)
+	---@type UnitData
 	local unit_data = storage.units[gui.tags.unit_number]
 	if not unit_data then
 		gui.destroy()
@@ -202,7 +203,7 @@ local function update_gui(gui, fresh_gui)
 		"",
 		states(),
 		" "
-			.. math.min(math.abs(last_action), unit_data.max_conversion_speed)
+			.. math.min(math.abs(last_action), unit_data.max_conversion_speed or 0)
 			.. " / [font=default-semibold][color=255,230,192]"
 			.. unit_data.max_conversion_speed
 			.. "[/color][/font] items/s",
@@ -229,7 +230,7 @@ end)
 
 --- Destroys GUI when the player changes surface
 script.on_event(defines.events.on_player_changed_surface, function(event)
-	local player = game.get_player(event.player_index)
+	local player = game.get_player(event.player_index) --[[@as LuaPlayer]]
 	if player.opened_gui_type == defines.gui_type.item then
 		local gui = player.gui.relative.memory_unit_gui
 		if gui then
@@ -247,7 +248,8 @@ script.on_event(defines.events.on_gui_opened, function(event)
 	---@type LuaPlayer
 	---@diagnostic disable-next-line: assign-type-mismatch
 	local player = game.get_player(event.player_index)
-	local entity = event.entity
+	-- we check for entity being nil in the first line of the function
+	local entity = event.entity --[[@as LuaEntity]]
 	shared.open_inventory(player)
 
 	local main_frame = player.gui.relative.add({
@@ -423,7 +425,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
 end)
 
 script.on_event(defines.events.on_gui_closed, function(event)
-	local player = game.get_player(event.player_index)
+	local player = game.get_player(event.player_index) --[[@as LuaPlayer]]
 	if event.gui_type == defines.gui_type.item then
 		local gui = player.gui.relative.memory_unit_gui
 		if gui then
@@ -433,8 +435,8 @@ script.on_event(defines.events.on_gui_closed, function(event)
 end)
 
 local function bulk_io(event, element)
-	local player = game.get_player(event.player_index)
-	local inventory = player.get_main_inventory()
+	local player = game.get_player(event.player_index) --[[@as LuaPlayer]]
+	local inventory = player.get_main_inventory() --[[@as LuaInventory]]
 	local unit_data = storage.units[element.tags.unit_number]
 	local item = unit_data.item
 	if not item then
@@ -470,9 +472,9 @@ local function bulk_io(event, element)
 end
 
 local function prime_unit(event, element)
-	local player = game.get_player(event.player_index)
+	local player = game.get_player(event.player_index) --[[@as LuaPlayer]]
 	local stack = player.cursor_stack
-	if not stack.valid_for_read or not shared.check_for_basic_item(stack.name) then
+	if not stack or not stack.valid_for_read or not shared.check_for_basic_item(stack.name) then
 		return
 	end
 	local unit_data = storage.units[element.tags.unit_number]
