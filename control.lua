@@ -419,6 +419,8 @@ function update_unit(unit_data, unit_number, force)
 		should_run = not apply_item_loss(unit_data)
 	end
 
+	should_run = should_run and not unit_data.overloaded_sprite
+
 	if not force and should_run then
 		local delta = math.min(math.abs(inventory_count - comfortable), max_conversion_speed)
 
