@@ -751,3 +751,41 @@ script.on_event(defines.events.on_pre_player_mined_item, pre_mined)
 script.on_event(defines.events.on_robot_pre_mined, pre_mined)
 script.on_event(defines.events.on_marked_for_deconstruction, pre_mined)
 script.on_event(defines.events.on_space_platform_pre_mined, pre_mined)
+
+script.on_event(defines.events.on_entity_settings_pasted, function(event)
+	local source = event.source
+	local destination = event.destination
+
+	---@type UnitData
+	local source_data = storage.units[source.unit_number]
+	---@type UnitData
+	local destination_data = storage.units[destination.unit_number]
+
+	-- one of the elements is not correct
+	if not source_data or not destination_data then
+		if destination_data then
+			goto set
+		end
+		return
+	end
+
+	if destination_data.count == 0 and destination_data.inventory.is_empty() then
+		destination_data.item = source_data.item
+		destination_data.stack_size = source_data.stack_size
+	else
+		---@type LuaPlayer
+		---@diagnostic disable-next-line: assign-type-mismatch
+		local player = game.get_player(event.player_index)
+
+		player.play_sound({ path = "utility/cannot_build" })
+
+		player.create_local_flying_text({
+			create_at_cursor = true,
+			text = { "entity-status.copy-failed" },
+		})
+	end
+
+	::set::
+	update_inventory_limits(destination_data)
+	set_filter(destination_data)
+end)
