@@ -61,17 +61,28 @@ local function update_gui(gui, fresh_gui)
 	local deconstructed = entity.to_be_deconstructed()
 	local inventory_count = 0
 	if unit_data.item then
-		inventory_count = inventory.get_item_count(unit_data.item)
+		inventory_count = inventory.get_item_count({ name = unit_data.item, quality = unit_data.quality })
 		if fresh_gui or not deconstructed then
-			content_flow.storage_flow.info_flow.content_sprite.sprite = "item/" .. unit_data.item
+			local sprite_button = content_flow.storage_flow.info_flow.content_sprite
+			sprite_button.sprite = "item/" .. unit_data.item
+			sprite_button.quality = unit_data.quality
+
+			local color = prototypes.quality[unit_data.quality].color
 			content_flow.storage_flow.info_flow.current_storage.caption = {
 				"",
 				{
 					"",
-					"[font=default-semibold][color=255,230,192]",
+					"[font=default-semibold][color=" .. color.r .. "," .. color.g .. "," .. color.b .. "]",
 					prototypes.item[unit_data.item].localised_name,
 				},
-				{ "", ":[/color][/font] ", compactify(count + inventory_count) },
+				unit_data.quality ~= "normal"
+						and { "", " (", prototypes.quality[unit_data.quality].localised_name, ")" }
+					or nil,
+				{
+					"",
+					"[/color][/font]: ",
+					compactify(count + inventory_count),
+				},
 			}
 		end
 	end
@@ -168,7 +179,8 @@ local function update_gui(gui, fresh_gui)
 		label.caption = { "entity-status.invalid-beacon" }
 	else
 		local max_count = (unit_data.inventory.get_bar() - 1) * unit_data.stack_size
-		local filled_percent = unit_data.inventory.get_item_count(unit_data.item) / max_count
+		local filled_percent = unit_data.inventory.get_item_count({ name = unit_data.item, quality = unit_data.quality })
+			/ max_count
 		mc_frame.mc_info_flow.matter_buffer.value = filled_percent
 		if low_power then
 			sprite.sprite = "utility/status_yellow"
@@ -320,12 +332,16 @@ script.on_event(defines.events.on_gui_opened, function(event)
 	})
 	bulk_extract.tags = { unit_number = entity.unit_number }
 
-	local info_flow = storage_flow.add({ type = "flow", name = "info_flow", direction = "horizontal" })
+	local info_flow = storage_flow.add({
+		type = "flow",
+		name = "info_flow",
+		direction = "horizontal",
+	})
+	info_flow.style.vertical_align = "center"
 	info_flow.style.horizontal_spacing = 6
 
-	local content_sprite = info_flow.add({ type = "sprite", name = "content_sprite" })
-	content_sprite.resize_to_sprite = false
-	content_sprite.style.size = { 32, 32 }
+	-- ignore_interaction disables hovering, enabled=false changes sprite visuals
+	info_flow.add({ type = "sprite-button", name = "content_sprite", mouse_button_filter = { "button-9" } })
 	info_flow.add({ type = "label", name = "current_storage" })
 
 	local no_input_item = controller_flow.add({
@@ -445,12 +461,13 @@ local function bulk_io(event, element)
 
 	local count = (event.button == defines.mouse_button_type.right) and unit_data.stack_size * #inventory
 		or unit_data.stack_size
+	local quality = unit_data.quality
 	if element.name == "bulk_insert" then -- insert
-		local amount_removed = inventory.remove({ name = item, count = count })
+		local amount_removed = inventory.remove({ name = item, count = count, quality = quality })
 		unit_data.count = unit_data.count + amount_removed
 	elseif element.name == "bulk_extract" then -- extract
 		local unit_inventory = unit_data.inventory
-		local inventory_count = unit_inventory.get_item_count(item)
+		local inventory_count = unit_inventory.get_item_count({ name = item, quality = quality })
 
 		if inventory_count + unit_data.count < count then -- not enough items are in storage
 			count = inventory_count + unit_data.count
@@ -460,10 +477,10 @@ local function bulk_io(event, element)
 			return
 		end
 
-		local amount_inserted = inventory.insert({ name = item, count = count })
+		local amount_inserted = inventory.insert({ name = item, count = count, quality = quality })
 		unit_data.count = unit_data.count - amount_inserted
 		if unit_data.count < 0 then
-			unit_inventory.remove({ name = item, count = -unit_data.count })
+			unit_inventory.remove({ name = item, count = -unit_data.count, quality = quality })
 			unit_data.count = 0
 		end
 	end
@@ -490,6 +507,7 @@ local function prime_unit(event, element)
 
 	unit_data.count = stack.count
 	unit_data.item = stack.name
+	unit_data.quality = stack.quality.name
 	unit_data.stack_size = stack.prototype.stack_size
 	unit_data.comfortable = unit_data.stack_size * #unit_data.inventory / 2
 	set_filter(unit_data)

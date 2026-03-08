@@ -3,7 +3,7 @@ require("gui")
 ---@class UnitData
 ---@field entity LuaEntity
 ---@field item string?
----@field quality QualityID?
+---@field quality QualityID
 ---@field stack_size number?
 ---@field comfortable number?
 ---@field inventory LuaInventory
@@ -348,7 +348,10 @@ local function apply_item_loss(unit_data)
 	else
 		if unit_data.count > 0 then
 			-- item is checked for existence above, unsure why the LSP cannot figure it out, so cast
-			local inventory_count = inventory.get_item_count(item --[[@as string]]) -- no containment field left, slowly delete items
+			local inventory_count = inventory.get_item_count({
+				name = item --[[@as string]],
+				quality = unit_data.quality,
+			}) -- no containment field left, slowly delete items
 			unit_data.count = unit_data.count * (1 - settings.global["memory-unit-se-fox-item-loss"].value)
 			update_unit_exterior(unit_data, inventory_count)
 
@@ -644,6 +647,7 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 		last_action = unit_data.last_action,
 		previous_inventory_count = unit_data.previous_inventory_count,
 		beacons = {},
+		quality = unit_data.quality,
 	} --[[@as UnitData]]
 
 	for name, _ in pairs(prototypes.get_entity_filtered({ { filter = "type", type = "beacon" } })) do
