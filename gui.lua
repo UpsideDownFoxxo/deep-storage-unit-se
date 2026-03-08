@@ -66,6 +66,7 @@ local function update_gui(gui, fresh_gui)
 			local sprite_button = content_flow.storage_flow.info_flow.content_sprite
 			sprite_button.sprite = "item/" .. unit_data.item
 			sprite_button.quality = unit_data.quality
+			sprite_button.elem_tooltip = { type = "item", name = unit_data.item, quality = unit_data.quality }
 
 			local color = prototypes.quality[unit_data.quality].color
 			content_flow.storage_flow.info_flow.current_storage.caption = {
@@ -340,8 +341,12 @@ script.on_event(defines.events.on_gui_opened, function(event)
 	info_flow.style.vertical_align = "center"
 	info_flow.style.horizontal_spacing = 6
 
-	-- ignore_interaction disables hovering, enabled=false changes sprite visuals
-	info_flow.add({ type = "sprite-button", name = "content_sprite", mouse_button_filter = { "button-9" } })
+	info_flow.add({
+		type = "sprite-button",
+		name = "content_sprite",
+		mouse_button_filter = { "middle", "left", "right" },
+		tags = { unit_number = entity.unit_number },
+	})
 	info_flow.add({ type = "label", name = "current_storage" })
 
 	local no_input_item = controller_flow.add({
@@ -520,9 +525,18 @@ end
 
 script.on_event(defines.events.on_gui_click, function(event)
 	local element = event.element
+
 	if not element.tags or not element.tags.unit_number then
 		return
 	end
+
+	if element.name == "content_sprite" then
+		---@type LuaPlayer
+		---@diagnostic disable-next-line: assign-type-mismatch
+		local player = game.get_player(event.player_index)
+		player.open_factoriopedia_gui(prototypes.item[storage.units[element.tags.unit_number].item])
+	end
+
 	if element.name == "bulk_insert" or element.name == "bulk_extract" then
 		bulk_io(event, element)
 	elseif element.name == "no_input_item" then
